@@ -18,3 +18,20 @@ A place to store the scripts used to process AGSL Archival GIS data.
 1. Put the zip file in the directory
 1. Create copies of ISO and FGDC metadata outside the zip in the directory.
 1. Use GeoCombine to generate aardvark JSON metadata - > *ark:id*.json, put it in the directory. (This step should include generating the download link: https://geodata.uwm.edu/*public*/*ark:id*)
+
+## noidmint.py
+
+Contains two functions:
+
+### searchForID()
+
+Designed to take a response string from the noid minter and applies a regular expression to extract the arkid.
+
+Could easily be modified to extract component parts, such as the Name Assigning Authority Number and the Assigned Name.
+
+Takes a string, returns a string.
+
+### mintArk()
+
+Designed to accept a noid minter url as a string as it's only argument and return a string containing just the arkid.
+Includes a try loop to catch any connection issues and checks the status code from the minter to ensure the request is completed as expected.
