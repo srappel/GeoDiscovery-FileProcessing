@@ -6,4 +6,4 @@ def tryarcpy() -> str:
         return "fail"
 
 if __name__ == "__main__":
-    tryarcpy()
+    print(tryarcpy())
