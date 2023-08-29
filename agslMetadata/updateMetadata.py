@@ -15,23 +15,17 @@ from pathlib import Path
 class Dataset:
     """Representation of the directory containing a dataset in any form"""
 
-    path: Path
     name: str
     status: str # Todo: make this an enum
     arkid: str
-    metadata: tuple[str,md.Metadata,ET.Element]
 
-    def __init__(self):
-        try:
-            metadata = get_dataset_metadata(self)
-        except:
-            #error
-            print("There was an error setting the metadata attribute while constructing the Document class")
+    def __init__(self, providedPath):
+        self.path = Path(providedPath)
 
     def get_dataset_metadata(self) -> tuple[str,md.Metadata,ET.Element]:
         """Gets a dataset's metadata
         
-        Returns a tuple with three objects:
+        Returns a tupale with three objects:
         - XML as a single string
         - arcpy.metadata.Metadata object
         - xml.etree.ElementTree Element Object for the root element (<metadata>)
@@ -41,7 +35,7 @@ class Dataset:
         :rtype: tuple[str,md.Metadata,ET.Element]
         """
         # get the md.Metadata object.
-        dataset_Metadata_object = md.Metadata(dataset)
+        dataset_Metadata_object = md.Metadata(self.path)
         # isReadOnly test to make sure we can write to the object else error
         if dataset_Metadata_object.isReadOnly is None: # This means that nothing was passed
             #ERROR
@@ -106,5 +100,17 @@ class Metadata:
     title: str
     rights: str # Todo: make this an enum
     arkid: str
+    mdObject: md.Metadata
+
+def main() -> None:
+    """Main function."""
+
+    dataset = Dataset(r"c:\Users\srappel\Desktop\Test Fixture Data\DoorCounty_Lighthouses_2010_UW\DoorCounty_Lighthouses_2010.shp")
+    dataset_metadata_string = dataset.get_dataset_metadata()[0]
+    print(f'The dataset path is: {dataset.path}')
+    print(f"The dataset's metadata is:\n{dataset_metadata_string}")
+
+if __name__ == "__main__":
+    main()  
 
     
