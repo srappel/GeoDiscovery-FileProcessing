@@ -1,5 +1,10 @@
 """
 Tools for updating AGSL metadata for GeoDiscovery
+
+TODO: Include rights test in the construction of the download URI
+TODO: bind method for the Identifier class
+TODO: method to Update the AGSL hours
+
 """
 
 import arcpy
@@ -73,7 +78,7 @@ class AGSLMetadata:
         if not altTitle_Element is None:
             return altTitle_Element.text
 
-    def write_identifiers(self, right_string) -> None:
+    def create_and_write_identifiers(self, right_string) -> None:
         
         # mint a new arkid:
         new_identifier = Identifier()
@@ -121,7 +126,7 @@ class AGSLMetadata:
         
         # Reassign some attributes:
         self.xml_text = self.md_object.xml
-        
+
         return
 
     def dual_metadata_export(self, md_outputdir=None, md_filename=None) -> tuple[Path,Path]:
@@ -203,7 +208,7 @@ def main() -> None:
     print(f"The assigned name is {new_arkid.assignedName}")
 
     # Test writing the identifiers:
-    dataset_metadata.write_identifiers("public")
+    dataset_metadata.create_and_write_identifiers("public")
 
     print(f"The Metadata File ID is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['metadataFileID']).text}")
     print(f"The Citation ID is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['identCode']).text}")
