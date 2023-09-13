@@ -90,7 +90,6 @@ class AGSLMetadata:
         '''Rights Test
         Generates the rights string that will be used as the directory on the apache server.
         Output will be "public" or "restricted-uw-system". Note that restricted-uwm is also acceptable, but those will be handeled manually.
-        TODO: This would be better if the rights strings were being defined in an enum or dict or something.
         '''
         rights_list = self.rootElement.findall(SEARCH_STRING_DICT["rights"]) # Returns a list
         if len(rights_list) == 0:
@@ -204,9 +203,7 @@ class AGSLMetadata:
         
         return output_ISO_Path, output_FGDC_Path
     
-    def bind(self, dev=DEV) -> requests.models.Response:
-        right_string = self.rights
-        
+    def bind(self, right_string, dev=DEV) -> requests.models.Response:
         if dev == False:
             binder = NOID_URL + '-'
         else:
@@ -218,6 +215,10 @@ class AGSLMetadata:
             mdfileid = root_Element.find(SEARCH_STRING_DICT["metadataFileID"]).text
 
             ark_URI = root_Element.find(SEARCH_STRING_DICT["identCode"]).text
+            
+            download_URI = root_Element.find(SEARCH_STRING_DICT["datasetURI"]).text
+            
+            metadata_URL = f"{FILE_SERVER_URL}metadata/{self.identifier.assignedName}_ISO.xml"
 
             try:
                 tmBegin = root_Element.find('.//tmBegin').text
@@ -235,7 +236,9 @@ class AGSLMetadata:
                 "where": f'{ark_URI}',
                 "meta-who": "University of Wisconsin-Milwaukee Libraries",
                 "meta-when": f'{time_now}',
+                "meta-uri": f'{metadata_URL}',
                 "rights": f'{right_string}',
+                "download": f'{download_URI}'
             }
             return parameter_dictionary
 
@@ -333,7 +336,7 @@ def main() -> None:
     print(f"The ancitipated NOID URL is: https://digilib-dev.uwm.edu/noidu_gmgs?get+{dataset_metadata.identifier.arkid}" + "\n")
     
     print("The bind request sent to NOID:")
-    r = AGSLMetadata.bind(dataset_metadata)
+    r = AGSLMetadata.bind(dataset_metadata, "restricted-uw-system")
     
     print(f"Bind request status code: {r.status_code}\n")
     
@@ -342,5 +345,4 @@ def main() -> None:
     
 if __name__ == "__main__":
     main()  
-
     
