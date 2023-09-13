@@ -153,10 +153,10 @@ class Dataset:
             print(f"{spacer}+ {path.name}")
         
     def ingest(self):
-        newdir = FILE_SERVER_PATH / self.metadata.rights / self.metadata.identifier.assignedName
-        newdir.mkdir()
-        
-        zipPath = newdir / f"{self.metadata.altTitle}.zip"
+        fileserver_dir = FILE_SERVER_PATH / self.metadata.rights / self.metadata.identifier.assignedName
+        fileserver_dir.mkdir()
+               
+        zipPath = fileserver_dir / f"{self.metadata.altTitle}.zip"
         
         with zipfile.ZipFile(zipPath, mode="w") as archive: 
             for member in self.path.rglob("*"): 
@@ -168,6 +168,15 @@ class Dataset:
         newzipfile = zipfile.ZipFile(zipPath)
         newzipfile.printdir()
         newzipfile.close()
+
+        # Copy the ISO metadata to the metadata directory:
+        ISO_Metadata = self.path / f"{self.metadata.altTitle}_ISO.xml"
+        ISO_Metadata_text = ISO_Metadata.read_text()
+
+        Fileserver_ISO_Metadata = FILE_SERVER_PATH / "metadata" / f"{self.metadata.identifier.assignedName}_ISO.xml"
+        Fileserver_ISO_Metadata.touch()
+        Fileserver_ISO_Metadata.write_text(ISO_Metadata_text)
+
         print("\n")
         return 
 
@@ -401,7 +410,7 @@ def main() -> None:
     """Main function."""
 
     # Test creating the Dataset and AGSL Metadata objects:
-    dataset = Dataset(r"C:\Users\srappel\Desktop\Test Fixture Data\Milwaukee_AldermanicWards_1896-1901")
+    dataset = Dataset(r"C:\Users\srappel\Desktop\Test Fixture Data\DoorCounty_Lighthouses_2010_UW")
     print(f"The class of dataset is {dataset.__class__}")
     print(f'\nThe dataset path is: {dataset.path}')
     print(f"The dataset within the path is: {dataset.data}\n")
