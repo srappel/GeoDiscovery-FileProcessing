@@ -26,7 +26,7 @@ APPLICATION_URL = 'https://geodiscovery.uwm.edu/'
 APPLICATION_URL_DEV = 'https://geodiscovery-dev.uwm.edu/'
 FILE_SERVER_URL = 'https://geodata.uwm.edu/'
 NOID_URL_DEV = 'https://digilib-dev.uwm.edu/noidu_gmgs?'
-NOID_URL = 'https://.uwm.edu/noidu_gmgs?'
+NOID_URL = ''
 
 ARK_REGEX = r"(\d{5})\/(\w{11})"
 
@@ -83,11 +83,11 @@ class AGSLMetadata:
         # mint a new arkid:
         new_identifier = Identifier()
         new_identifier.mint()
-        self.arkid: Identifier = new_identifier
+        self.identifier: Identifier = new_identifier
 
         # Generate the text strings
-        ark_URI: str = APPLICATION_URL + 'ark:-' + self.arkid.arkid.replace('/','-')
-        download_URI: str = f'{FILE_SERVER_URL}{right_string}/{self.arkid.assignedName}/{self.altTitle}.zip'
+        ark_URI: str = APPLICATION_URL + 'ark:-' + self.identifier.arkid.replace('/','-')
+        download_URI: str = f'{FILE_SERVER_URL}{right_string}/{self.identifier.assignedName}/{self.altTitle}.zip'
         
         def check_if_existing_identifier(root, find_string) -> bool:
             if len(root.findall(find_string)) > 0:
@@ -110,7 +110,7 @@ class AGSLMetadata:
         else:
             dataset_mdFileID_Element = ET.SubElement(self.rootElement, 'mdFileID')
         
-        dataset_mdFileID_Element.text = f'ark:/{self.arkid.arkid}'
+        dataset_mdFileID_Element.text = f'ark:/{self.identifier.arkid}'
 
         # Write the Dataset URI:
         if check_if_existing_identifier(self.rootElement, SEARCH_STRING_DICT["datasetURI"]):
@@ -159,6 +159,61 @@ class AGSLMetadata:
         
         return output_ISO_Path, output_FGDC_Path
   
+    def bind(self, right_string, dev=DEV) -> None:
+        if dev == False:
+            binder = NOID_URL + '-'
+        else:
+            binder = NOID_URL_DEV + '-'
+
+        def create_bind_params(metadata, right_string) -> dict:
+            root_Element = ET.fromstring(metadata.xml_text)
+
+            mdfileid = root_Element.find(SEARCH_STRING_DICT["metadataFileID"]).text
+
+            ark_URI = root_Element.find(SEARCH_STRING_DICT["identCode"]).text
+
+            try:
+                tmBegin = root_Element.find('.//tmBegin').text
+                tmEnd = root_Element.find('.//tmEnd').text
+                date_when = f'{tmBegin}/{tmEnd}'
+            except:
+                date_when = root_Element.find('.//tmPosition').text
+
+            time_now = datetime.now().replace(microsecond=0).isoformat()
+
+            parameter_dictionary = {
+                "who": f'{metadata.md_object.credits}',
+                "what": f'{metadata.md_object.title}',
+                "when": f'{date_when}',
+                "where": f'{ark_URI}',
+                "meta-who": "University of Wisconsin-Milwaukee Libraries",
+                "meta-when": f'{time_now}',
+                "rights": f'{right_string}',
+            }
+            return parameter_dictionary
+
+        def construct_bind_request(arkid, bind_params) -> str:
+            param_string = ''
+            for key, value in bind_params.items():
+                param_string = param_string + f'bind set {arkid} {key} "{value}"' + '\n'
+            print(param_string)
+            return param_string
+
+        bind_params = create_bind_params(self, right_string)
+        bind_params_commands = construct_bind_request(self.identifier.arkid, bind_params)
+
+        try:
+            r = requests.post(binder, data=bind_params_commands)
+        except:
+            print("There was a connection error! Check the URL you used to bind the id!")
+            return
+        if r.status_code != 200:
+            print("There was a non-200 status code from the binder: " + r.status_code)
+            return
+        else:
+            return r
+  
+
 class Identifier:
 
     def mint(self, dev=DEV) -> None:
@@ -221,9 +276,17 @@ def main() -> None:
     print("Result of Dual Metadata Export:")
     print(ISO_dir)
     print(FGDC_dir)
-
+    
+    # Test the binder:
+    print(f"The ancitipated NOID URL is: https://digilib-dev.uwm.edu/noidu_gmgs?get+{dataset_metadata.identifier.arkid}" + "\n")
+    
+    r = AGSLMetadata.bind(dataset_metadata, "restricted-uw-system")
+    
+    print(r.status_code)
+    
+    # Success!
     print("Success!")
-
+    
 if __name__ == "__main__":
     main()  
 
