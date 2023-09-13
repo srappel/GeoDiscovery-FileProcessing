@@ -143,6 +143,12 @@ class Dataset:
             dataset_root_Element = ET.fromstring(dataset_Metadata_object.xml)
             return dataset_Metadata_object.xml, dataset_Metadata_object, dataset_root_Element
 
+    def tree(self):
+        print(f"+ {self.path}")
+        for path in sorted(directory.rglob("*")):
+            depth = len(path.relative_to(directory).parts)
+            spacer = "    " * depth
+            print(f"{spacer}+ {path.name}")
 class AGSLMetadata:
 
     def __init__(self, dataset_metadata_tuple):
@@ -422,4 +428,3 @@ def main() -> None:
     
 if __name__ == "__main__":
     main()  
-    
