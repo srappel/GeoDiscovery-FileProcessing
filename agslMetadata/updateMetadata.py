@@ -71,6 +71,13 @@ class AGSLMetadata:
         self.md_object: md.Metadata = dataset_metadata_tuple[1]
         self.rootElement: ET.Element = dataset_metadata_tuple[2]
         self.altTitle: str = self.get_alt_title()
+            
+    def save(self):
+        self.md_object.xml = ET.tostring(self.rootElement)
+        self.md_object.save()
+        self.xml_text = self.md_object.xml
+        self.rootElement: ET.Element = ET.fromstring(self.xml_text)
+        self.altTitle: str = self.get_alt_title()
 
     def get_alt_title(self) -> str:
         rootElement = self.rootElement
@@ -120,12 +127,35 @@ class AGSLMetadata:
         
         dataset_dataSetURI_Element.text = download_URI
 
-        # Write the new ET to the Metdata object and save:
-        self.md_object.xml = ET.tostring(self.rootElement)
-        self.md_object.save()
-        
-        # Reassign some attributes:
-        self.xml_text = self.md_object.xml
+        self.save()
+
+        return
+    
+    def update_agsl_hours(self) -> None:
+        # Find all the AGSL contacts
+        contact_list = self.rootElement.findall('.//rpCntInfo/cntHours/../..') # Returns a list
+
+        if len(contact_list) < 1:
+            print("No contacts found!")
+            return rootElement
+        else:
+            print(f'{len(contact_list)} contacts found.')
+
+        for contact in contact_list:
+            org = contact.find('./displayName')
+
+            if not org is None:
+                org_text = org.text
+            else:
+                print("no org text!")
+                return
+
+            if "American Geographical" in org_text:
+                hours_Element = contact.find('.//cntHours')
+                hours_Element.text = "Monday – Friday: 9:00am – 4:30pm"
+                print(f'Updated {contact.tag}/rpCntInfo/cntHours.text to {hours_Element.text}')
+                
+        self.save()
 
         return
 
@@ -158,8 +188,8 @@ class AGSLMetadata:
         self.md_object.exportMetadata(output_FGDC_Path, 'FGDC_CSDGM', metadata_removal_option='REMOVE_ALL_SENSITIVE_INFO')
         
         return output_ISO_Path, output_FGDC_Path
-  
-    def bind(self, right_string, dev=DEV) -> None:
+    
+    def bind(self, right_string, dev=DEV) -> requests.models.Response:
         if dev == False:
             binder = NOID_URL + '-'
         else:
@@ -213,11 +243,10 @@ class AGSLMetadata:
         else:
             return r
   
-
 class Identifier:
 
-    def mint(self, dev=DEV) -> None:
-        if dev == False:
+    def mint(self, dev=DEV) -> requests.models.Response:
+        if dev != DEV:
             minter = NOID_URL + 'mint+1'
         else:
             minter = NOID_URL_DEV + 'mint+1'
@@ -230,7 +259,7 @@ class Identifier:
 
         if mint_request.status_code != 200:
             print(f"mint request status code = {mint_request.status_code}")
-            return
+            return mint_request
         else:
             regex = re.compile(ARK_REGEX)
             regex_result = regex.search(mint_request.text)
@@ -238,10 +267,12 @@ class Identifier:
                 self.arkid = regex_result[0]
                 self.nameAuthorityNumber = regex_result[1]
                 self.assignedName = regex_result[2]
-                return
+                print(f"mint request status code = {mint_request.status_code}")
+                return mint_request
             else:
                 raise Exception("Failed to mint an arkid!")
-                return
+                print(f"mint request status code = {mint_request.status_code}")
+                return mint_request
         
 def main() -> None:
     """Main function."""
@@ -254,35 +285,39 @@ def main() -> None:
     print(f"The class of dataset_metadata is {dataset_metadata.__class__}")
     print(f"The dataset's alt title is {dataset_metadata.altTitle}\n")
     
-    # Test creating identifiers:
-    new_arkid = Identifier()
-    new_arkid.mint()
+#     # Test creating identifiers:
+#     new_arkid = Identifier()
+#     new_arkid.mint()
 
-    print(f"The full test ARKID is ark:/{new_arkid.arkid}")
-    print(f"The NAN is {new_arkid.nameAuthorityNumber}")
-    print(f"The assigned name is {new_arkid.assignedName}")
+#     print(f"The full test ARKID is ark:/{new_arkid.arkid}")
+#     print(f"The NAN is {new_arkid.nameAuthorityNumber}")
+#     print(f"The assigned name is {new_arkid.assignedName}")
 
     # Test writing the identifiers:
     dataset_metadata.create_and_write_identifiers("public")
 
     print(f"The Metadata File ID is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['metadataFileID']).text}")
     print(f"The Citation ID is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['identCode']).text}")
-    print(f"The Dataset URI is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['datasetURI']).text}")
+    print(f"The Dataset URI is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['datasetURI']).text}\n")
+    
+    # Test updating agsl hours:
+    dataset_metadata.update_agsl_hours()
+    print("\n")
 
     # Test Dual Metadata Export:
-    print(f"The dataset's path is: {dataset_metadata.md_object.uri}")
-
     ISO_dir, FGDC_dir = dataset_metadata.dual_metadata_export() # returns the 2 paths of the exported md
     print("Result of Dual Metadata Export:")
     print(ISO_dir)
     print(FGDC_dir)
+    print("\n")
     
     # Test the binder:
     print(f"The ancitipated NOID URL is: https://digilib-dev.uwm.edu/noidu_gmgs?get+{dataset_metadata.identifier.arkid}" + "\n")
     
+    print("The bind request sent to NOID:")
     r = AGSLMetadata.bind(dataset_metadata, "restricted-uw-system")
     
-    print(r.status_code)
+    print(f"Bind request status code: {r.status_code}\n")
     
     # Success!
     print("Success!")
