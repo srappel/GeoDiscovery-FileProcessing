@@ -71,6 +71,7 @@ class AGSLMetadata:
         self.md_object: md.Metadata = dataset_metadata_tuple[1]
         self.rootElement: ET.Element = dataset_metadata_tuple[2]
         self.altTitle: str = self.get_alt_title()
+        self.rights: str = self.rights_test()
             
     def save(self):
         self.md_object.xml = ET.tostring(self.rootElement)
@@ -84,6 +85,20 @@ class AGSLMetadata:
         altTitle_Element = rootElement.find(SEARCH_STRING_DICT["altTitle"])
         if not altTitle_Element is None:
             return altTitle_Element.text
+        
+    def rights_test(self) -> str:
+        '''Rights Test
+        Generates the rights string that will be used as the directory on the apache server.
+        Output will be "public" or "restricted-uw-system". Note that restricted-uwm is also acceptable, but those will be handeled manually.
+        TODO: This would be better if the rights strings were being defined in an enum or dict or something.
+        '''
+        rights_list = self.rootElement.findall(SEARCH_STRING_DICT["rights"]) # Returns a list
+        if len(rights_list) == 0:
+            return "public"
+        if "restricted" in rights_list[0].text.lower():
+            return "restricted-uw-system"
+        else:
+            return "public"
 
     def create_and_write_identifiers(self, right_string) -> None:
         
@@ -189,7 +204,9 @@ class AGSLMetadata:
         
         return output_ISO_Path, output_FGDC_Path
     
-    def bind(self, right_string, dev=DEV) -> requests.models.Response:
+    def bind(self, dev=DEV) -> requests.models.Response:
+        right_string = self.rights
+        
         if dev == False:
             binder = NOID_URL + '-'
         else:
@@ -283,7 +300,8 @@ def main() -> None:
 
     dataset_metadata = dataset.metadata
     print(f"The class of dataset_metadata is {dataset_metadata.__class__}")
-    print(f"The dataset's alt title is {dataset_metadata.altTitle}\n")
+    print(f"The dataset's alt title is {dataset_metadata.altTitle}")
+    print(f"The rights string for the dataset is: {dataset.metadata.rights}\n")
     
 #     # Test creating identifiers:
 #     new_arkid = Identifier()
@@ -315,7 +333,7 @@ def main() -> None:
     print(f"The ancitipated NOID URL is: https://digilib-dev.uwm.edu/noidu_gmgs?get+{dataset_metadata.identifier.arkid}" + "\n")
     
     print("The bind request sent to NOID:")
-    r = AGSLMetadata.bind(dataset_metadata, "restricted-uw-system")
+    r = AGSLMetadata.bind(dataset_metadata)
     
     print(f"Bind request status code: {r.status_code}\n")
     
