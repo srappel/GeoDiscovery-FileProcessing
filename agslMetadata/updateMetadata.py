@@ -5,6 +5,7 @@ Tools for updating AGSL metadata for GeoDiscovery
 import arcpy
 import requests
 import re
+import zipfile
 
 import xml.etree.ElementTree as ET
 
@@ -22,6 +23,7 @@ APPLICATION_URL_DEV = 'https://geodiscovery-dev.uwm.edu/'
 FILE_SERVER_URL = 'https://geodata.uwm.edu/'
 NOID_URL_DEV = 'https://digilib-dev.uwm.edu/noidu_gmgs?'
 NOID_URL = ''
+FILE_SERVER_PATH = Path(r"C:\Users\srappel\Desktop\DEV_geoblacklight")
 
 ARK_REGEX = r"(\d{5})\/(\w{11})"
 
@@ -142,13 +144,33 @@ class Dataset:
         else:
             dataset_root_Element = ET.fromstring(dataset_Metadata_object.xml)
             return dataset_Metadata_object.xml, dataset_Metadata_object, dataset_root_Element
-
+        
     def tree(self):
         print(f"+ {self.path}")
-        for path in sorted(directory.rglob("*")):
-            depth = len(path.relative_to(directory).parts)
+        for path in sorted(self.path.rglob("*")):
+            depth = len(path.relative_to(self.path).parts)
             spacer = "    " * depth
             print(f"{spacer}+ {path.name}")
+        
+    def ingest(self):
+        newdir = FILE_SERVER_PATH / self.metadata.rights / self.metadata.identifier.assignedName
+        newdir.mkdir()
+        
+        zipPath = newdir / f"{self.metadata.altTitle}.zip"
+        
+        with zipfile.ZipFile(zipPath, mode="w") as archive: 
+            for member in self.path.rglob("*"): 
+                archive.write(member, member.relative_to(self.path))
+                
+        archive.close()
+        
+        print(f"\nContents of deliverable zipfile `{str(zipPath)}`")
+        newzipfile = zipfile.ZipFile(zipPath)
+        newzipfile.printdir()
+        newzipfile.close()
+        print("\n")
+        return 
+
 class AGSLMetadata:
 
     def __init__(self, dataset_metadata_tuple):
@@ -388,14 +410,6 @@ def main() -> None:
     print(f"The class of dataset_metadata is {dataset_metadata.__class__}")
     print(f"The dataset's alt title is {dataset_metadata.altTitle}")
     print(f"The rights string for the dataset is: {dataset.metadata.rights}\n")
-    
-#     # Test creating identifiers:
-#     new_arkid = Identifier()
-#     new_arkid.mint()
-
-#     print(f"The full test ARKID is ark:/{new_arkid.arkid}")
-#     print(f"The NAN is {new_arkid.nameAuthorityNumber}")
-#     print(f"The assigned name is {new_arkid.assignedName}")
 
     # Test writing the identifiers:
     dataset_metadata.create_and_write_identifiers()
@@ -422,6 +436,10 @@ def main() -> None:
     r = AGSLMetadata.bind(dataset_metadata, "restricted-uw-system")
     
     print(f"Bind request status code: {r.status_code}\n")
+    
+    # Test the zipfile builder:
+    dataset.tree()
+    ingestPath = dataset.ingest()
     
     # Success!
     print("Success!")
