@@ -1,10 +1,5 @@
 """
 Tools for updating AGSL metadata for GeoDiscovery
-
-TODO: Include rights test in the construction of the download URI
-TODO: bind method for the Identifier class
-TODO: method to Update the AGSL hours
-
 """
 
 import arcpy
@@ -99,7 +94,7 @@ class AGSLMetadata:
         else:
             return "public"
 
-    def create_and_write_identifiers(self, right_string) -> None:
+    def create_and_write_identifiers(self) -> None:
         
         # mint a new arkid:
         new_identifier = Identifier()
@@ -108,7 +103,7 @@ class AGSLMetadata:
 
         # Generate the text strings
         ark_URI: str = APPLICATION_URL + 'ark:-' + self.identifier.arkid.replace('/','-')
-        download_URI: str = f'{FILE_SERVER_URL}{right_string}/{self.identifier.assignedName}/{self.altTitle}.zip'
+        download_URI: str = f'{FILE_SERVER_URL}{self.rights}/{self.identifier.assignedName}/{self.altTitle}.zip'
         
         def check_if_existing_identifier(root, find_string) -> bool:
             if len(root.findall(find_string)) > 0:
@@ -203,13 +198,13 @@ class AGSLMetadata:
         
         return output_ISO_Path, output_FGDC_Path
     
-    def bind(self, right_string, dev=DEV) -> requests.models.Response:
+    def bind(self, dev=DEV) -> requests.models.Response:
         if dev == False:
             binder = NOID_URL + '-'
         else:
             binder = NOID_URL_DEV + '-'
 
-        def create_bind_params(metadata, right_string) -> dict:
+        def create_bind_params(metadata) -> dict:
             root_Element = ET.fromstring(metadata.xml_text)
 
             mdfileid = root_Element.find(SEARCH_STRING_DICT["metadataFileID"]).text
@@ -237,7 +232,7 @@ class AGSLMetadata:
                 "meta-who": "University of Wisconsin-Milwaukee Libraries",
                 "meta-when": f'{time_now}',
                 "meta-uri": f'{metadata_URL}',
-                "rights": f'{right_string}',
+                "rights": f'{self.rights}',
                 "download": f'{download_URI}'
             }
             return parameter_dictionary
@@ -249,7 +244,7 @@ class AGSLMetadata:
             print(param_string)
             return param_string
 
-        bind_params = create_bind_params(self, right_string)
+        bind_params = create_bind_params(self)
         bind_params_commands = construct_bind_request(self.identifier.arkid, bind_params)
 
         try:
@@ -298,7 +293,7 @@ def main() -> None:
     """Main function."""
 
     # Test creating the Dataset and AGSL Metadata objects:
-    dataset = Dataset(r"c:\Users\srappel\Desktop\Test Fixture Data\DoorCounty_Lighthouses_2010_UW\DoorCounty_Lighthouses_2010.shp")
+    dataset = Dataset(r"C:\Users\srappel\Desktop\Test Fixture Data\Milwaukee_AldermanicWards_1896-1901\Milwaukee_AldermanicWards_1896-1901.shp")
     print(f'\nThe dataset path is: {dataset.path}\n')
 
     dataset_metadata = dataset.metadata
@@ -315,7 +310,7 @@ def main() -> None:
 #     print(f"The assigned name is {new_arkid.assignedName}")
 
     # Test writing the identifiers:
-    dataset_metadata.create_and_write_identifiers("public")
+    dataset_metadata.create_and_write_identifiers()
 
     print(f"The Metadata File ID is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['metadataFileID']).text}")
     print(f"The Citation ID is: {ET.fromstring(dataset_metadata.xml_text).find(SEARCH_STRING_DICT['identCode']).text}")
