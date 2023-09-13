@@ -44,10 +44,94 @@ class Dataset:
 
     def __init__(self, providedPath):
         self.path = Path(providedPath)
-        self.metadata: AGSLMetadata = AGSLMetadata(self.get_dataset_metadata(self.path))
+        if not self.path.is_dir():
+            raise Exception("Provided path is not a directory.")
+            return
+            
+        self.data, self.datatype = self.fetch_dataset_from_directory()
+        if self.datatype == 0:
+            raise Exception("Not able to fetch the data from the directory provided")
+            return
+        elif self.datatype == 4:
+            raise Exception("There are multiple data types in the directory provided")
+            return
+        
+        self.metadata: AGSLMetadata = AGSLMetadata(self.get_dataset_metadata())
+    
+    def fetch_dataset_from_directory(self) -> tuple[Path, int]:
+        def test_dataset_type(rootdir) -> int:
+            '''Test Dataset Type
+            - Returns an integer for type:
+                - 0: Error
+                - 1: Shapefile
+                - 2: FileGeodatabase
+                - 3: ArcGRID Raster
+                - 4: Other/Mutliple
+            '''    
+            rootdir = Path(rootdir)
 
-    def get_dataset_metadata(self, path) -> tuple[str,md.Metadata,ET.Element]:
-        dataset_Metadata_object = md.Metadata(path)
+            gdb_count = 0
+            shp_count = 0
+            raster_count = 0
+
+            for path in Path(rootdir).rglob("*"):
+                if path.suffix == ".gdb":
+                    gdb_count += 1
+                    continue
+                elif path.suffix == ".shp":
+                    shp_count += 1
+                elif path.suffix == ".adf":
+                    raster_count += 1
+
+            if gdb_count == 0 and shp_count == 0 and raster_count == 0:
+                return 0
+            elif gdb_count == 0 and shp_count == 1 and raster_count == 0:
+                return 1
+            elif gdb_count == 1 and shp_count == 0 and raster_count == 0:
+                return 2
+            elif gdb_count == 0 and shp_count == 0 and raster_count >= 1:
+                # Note that there might be more than one .adf file!
+                return 3
+            elif (gdb_count + shp_count + raster_count) >= 1:
+                return 4
+            else:
+                return 0
+        
+        dataset_type = test_dataset_type(self.path)
+        
+        if dataset_type != 0: # 0 would mean there is an error
+            if dataset_type == 1: # Shapefile
+                dataset = next(self.path.rglob("*.shp"))
+            elif dataset_type == 2: # FileGeodatabase
+                geodatabase = next(self.path.rglob("*.gdb")) # Path Representation of the geodatabase
+                arcpy.env.workspace = str(geodatabase) # This can't be a Path, it has to be a path as string.
+                feature_dataset_list = arcpy.ListDatasets("*","feature")
+                if not len(feature_dataset_list) > 1:
+                    dataset = Path(geodatabase) / feature_dataset_list[0]
+                else:
+                    return
+            elif dataset_type == 3: # Raster Dataset... ArcGrid only for now.
+                arcpy.env.workspace = str(self.path) # This can't be a Path, it has to be a path as string.
+                raster_dataset_list = arcpy.ListRasters("*")
+                if not len(raster_dataset_list) > 1:
+                    dataset = self.path / raster_dataset_list[0]
+                else:
+                    return  
+            elif dataset_type == 4:
+                return        
+        else:
+            print("No data found in the provided dataset path. (1)")
+            return
+
+        if md.Metadata(dataset).__class__ == arcpy.metadata.Metadata:
+            return Path(dataset), dataset_type
+        else:
+            print("No data found in the provided dataset path. (2)")
+            return
+        
+        
+    def get_dataset_metadata(self) -> tuple[str,md.Metadata,ET.Element]:
+        dataset_Metadata_object = md.Metadata(self.data)
 
         if dataset_Metadata_object.isReadOnly is None: # This means that nothing was passed
             print("A blank metadata object was created")
@@ -82,10 +166,6 @@ class AGSLMetadata:
             return altTitle_Element.text
         
     def rights_test(self) -> str:
-        '''Rights Test
-        Generates the rights string that will be used as the directory on the apache server.
-        Output will be "public" or "restricted-uw-system". Note that restricted-uwm is also acceptable, but those will be handeled manually.
-        '''
         rights_list = self.rootElement.findall(SEARCH_STRING_DICT["rights"]) # Returns a list
         if len(rights_list) == 0:
             return "public"
@@ -293,8 +373,10 @@ def main() -> None:
     """Main function."""
 
     # Test creating the Dataset and AGSL Metadata objects:
-    dataset = Dataset(r"C:\Users\srappel\Desktop\Test Fixture Data\Milwaukee_AldermanicWards_1896-1901\Milwaukee_AldermanicWards_1896-1901.shp")
-    print(f'\nThe dataset path is: {dataset.path}\n')
+    dataset = Dataset(r"C:\Users\srappel\Desktop\Test Fixture Data\Milwaukee_AldermanicWards_1896-1901")
+    print(f"The class of dataset is {dataset.__class__}")
+    print(f'\nThe dataset path is: {dataset.path}')
+    print(f"The dataset within the path is: {dataset.data}\n")
 
     dataset_metadata = dataset.metadata
     print(f"The class of dataset_metadata is {dataset_metadata.__class__}")
