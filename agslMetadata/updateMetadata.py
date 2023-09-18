@@ -22,7 +22,7 @@ APPLICATION_URL = 'https://geodiscovery.uwm.edu/'
 APPLICATION_URL_DEV = 'https://geodiscovery-dev.uwm.edu/'
 FILE_SERVER_URL = 'https://geodata.uwm.edu/'
 NOID_URL_DEV = 'https://digilib-dev.uwm.edu/noidu_gmgs?'
-NOID_URL = ''
+NOID_URL = 'https://digilib-admin.uwm.edu/noidu_gmgs?'
 FILE_SERVER_PATH = Path(r"C:\Users\srappel\Desktop\DEV_geoblacklight")
 
 ARK_REGEX = r"(\d{5})\/(\w{11})"
