@@ -14,15 +14,14 @@ from datetime import datetime
 from pathlib import Path
 from enum import Enum
 
-DEV = True
-
 RIGHTS = ['public', 'restricted-uw-system', 'restricted-uwm']
 
 APPLICATION_URL = 'https://geodiscovery.uwm.edu/'
 APPLICATION_URL_DEV = 'https://geodiscovery-dev.uwm.edu/'
 FILE_SERVER_URL = 'https://geodata.uwm.edu/'
 NOID_URL_DEV = 'https://digilib-dev.uwm.edu/noidu_gmgs?'
-NOID_URL = 'https://digilib-admin.uwm.edu/noidu_gmgs?'
+NOID_URL = NOID_URL_DEV
+#NOID_URL = 'https://digilib-admin.uwm.edu/noidu_gmgs?'
 FILE_SERVER_PATH = Path(r"C:\Users\srappel\Desktop\DEV_geoblacklight")
 
 ARK_REGEX = r"(\d{5})\/(\w{11})"
@@ -159,24 +158,32 @@ class Dataset:
         zipPath = fileserver_dir / f"{self.metadata.altTitle}.zip"
         
         with zipfile.ZipFile(zipPath, mode="w") as archive: 
-            for member in self.path.rglob("*"): 
-                archive.write(member, member.relative_to(self.path))
-                
+            for member in self.path.rglob("*"):
+                try: 
+                    archive.write(member, member.relative_to(self.path))
+                except Exception as error:
+                    print(f"Warning: There was a problem adding {member.name} to the new zipfile")
+                    print(error)
+                    print()
+                    continue
         archive.close()
-        
-        print(f"\nContents of deliverable zipfile `{str(zipPath)}`")
+
         newzipfile = zipfile.ZipFile(zipPath)
+        print(f"\nContents of deliverable zipfile `{str(zipPath)}`")
         newzipfile.printdir()
         newzipfile.close()
 
         # Copy the ISO metadata to the metadata directory:
         ISO_Metadata = self.path / f"{self.metadata.altTitle}_ISO.xml"
-        ISO_Metadata_text = ISO_Metadata.read_text()
-
+        if ISO_Metadata.exists():
+            ISO_Metadata_text = ISO_Metadata.read_text()
+        else:
+            raise Exception("ISO Metadata does not exist!")
+        
         Fileserver_ISO_Metadata = FILE_SERVER_PATH / "metadata" / f"{self.metadata.identifier.assignedName}_ISO.xml"
         Fileserver_ISO_Metadata.touch()
         Fileserver_ISO_Metadata.write_text(ISO_Metadata_text)
-
+        
         print("\n")
         return 
 
@@ -315,11 +322,10 @@ class AGSLMetadata:
         
         return output_ISO_Path, output_FGDC_Path
     
-    def bind(self, dev=DEV) -> requests.models.Response:
-        if dev == False:
-            binder = NOID_URL + '-'
-        else:
-            binder = NOID_URL_DEV + '-'
+    def bind(self) -> requests.models.Response:
+
+        binder = NOID_URL + '-'
+
 
         def create_bind_params(metadata) -> dict:
             root_Element = ET.fromstring(metadata.xml_text)
@@ -377,11 +383,9 @@ class AGSLMetadata:
   
 class Identifier:
 
-    def mint(self, dev=DEV) -> requests.models.Response:
-        if dev != DEV:
-            minter = NOID_URL + 'mint+1'
-        else:
-            minter = NOID_URL_DEV + 'mint+1'
+    def mint(self) -> requests.models.Response:
+
+        minter = NOID_URL + 'mint+1'
 
         try:
             mint_request = requests.get(minter)

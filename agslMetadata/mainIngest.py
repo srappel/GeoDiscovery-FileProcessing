@@ -1,6 +1,7 @@
 import updateMetadata
 from pathlib import Path
 
+warnings = []
 
 # Take as an argument a directory containing a bunch of datasets (in dirs)
 target_directory = Path(r"C:\Users\srappel\Desktop\New_Test_Fixture")
@@ -26,10 +27,13 @@ for dataset_directory in list_all_dirs(target_directory):
 #   - Dataset.datatype (Integer code)
 #   - Dataset.metadata (A AGSLMetadata Object)
         try:
-            dataset = updateMetadata.Dataset(Path(dataset_directory))
+            dataset = updateMetadata.Dataset(Path(dataset_directory[0]))
         except Exception as error:
-            print(f"Failed to create Dataset object for {str(dataset_directory[0])}\n")
+            warning = f"Failed to create Dataset object for {str(dataset_directory[0])}\n"
+            print(warning)
             print(error)
+            warnings.append(warning)
+            warnings.append(error)
             continue # Will go to the next Dataset.
 
 # Creating the Dataset object will create the AGSLMetadata object:
@@ -47,8 +51,11 @@ for dataset_directory in list_all_dirs(target_directory):
         try:
             dataset.metadata.create_and_write_identifiers()
         except Exception as error:
-            print(f"Failed to create and write identifiers for {str(dataset_directory[0])}\n")
+            warning = f"Failed to create and write identifiers for {str(dataset_directory[0])}\n"
+            print(warning)
             print(error)
+            warnings.append(warning)
+            warnings.append(error)
             continue
 # First, this will mint a new Identifier object.
 # This creates:
@@ -66,8 +73,11 @@ for dataset_directory in list_all_dirs(target_directory):
         try:
             dataset.metadata.update_agsl_hours()
         except Exception as error:
-            print(f"Failed to update AGSL hours for {str(dataset_directory[0])}\n")
+            warning = f"Failed to update AGSL hours for {str(dataset_directory[0])}\n"
+            print(warning)
             print(error)
+            warnings.append(warning)
+            warnings.append(error)
             continue
 # Updates the hours in the metadata and saves the metadata object.
 
@@ -76,8 +86,11 @@ for dataset_directory in list_all_dirs(target_directory):
         try:
             dataset.metadata.dual_metadata_export()
         except Exception as error:
-            print(f"Failed to export metadata for {str(dataset_directory[0])}\n")
+            warning = f"Failed to export metadata for {str(dataset_directory[0])}\n"
+            print(warning)
             print(error)
+            warnings.append(warning)
+            warnings.append(error)
             continue
 # This exports the metadata to the parent directory for the dataset
 
@@ -86,8 +99,11 @@ for dataset_directory in list_all_dirs(target_directory):
         try:
             dataset.metadata.bind()
         except Exception as error:
-            print(f"Failed to NOID bind for {str(dataset_directory[0])}\n")
+            warning = f"Failed to NOID bind for {str(dataset_directory[0])}\n"
+            print(warning)
             print(error)
+            warnings.append(warning)
+            warnings.append(error)
             continue
 # Creates the bind parameters:
 # who, what, when, where, meta-who, meta-when, meta-uri, rights, download
@@ -102,8 +118,11 @@ for dataset_directory in list_all_dirs(target_directory):
         try:
             dataset.ingest()
         except Exception as error:
-            print(f"Failed to ingest {str(dataset_directory[0])}\n")
+            warning = f"Failed to ingest {str(dataset_directory[0])}\n"
+            print(warning)
             print(error)
+            warnings.append(warning)
+            warnings.append(error)
             continue
 
 ### Testing/Logging
@@ -111,7 +130,13 @@ for dataset_directory in list_all_dirs(target_directory):
 
 # if it is successful:
 # write to log the path on the webserver
-
+if len(warnings) >= 1:
+    print(f"Finished with the following {str(len(warnings) / 2)} errors:")
+    for warning in warnings:
+        print(warning)
+        print()
+else:
+    print("Finished with no errors!")
 # if it fails
 # write the failture to the log
 # write an error message indicating where/why it failed
