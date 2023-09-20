@@ -17,6 +17,7 @@ def list_all_dirs(rootdir) -> list[tuple[Path,int]]:
             all_directories.append(path_tuple)
     return all_directories
 
+# Main Function
 for dataset_directory in list_all_dirs(target_directory):
     if dataset_directory[1] == 1: # Only children of root
 
