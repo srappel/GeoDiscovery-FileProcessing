@@ -19,12 +19,12 @@ RIGHTS = ['public', 'restricted-uw-system', 'restricted-uwm']
 APPLICATION_URL = 'https://geodiscovery.uwm.edu/'
 APPLICATION_URL_DEV = 'https://geodiscovery-dev.uwm.edu/'
 FILE_SERVER_URL = 'https://geodata.uwm.edu/'
-NOID_URL_DEV = 'https://digilib-dev.uwm.edu/noidu_gmgs?'
-NOID_URL = NOID_URL_DEV
-#NOID_URL = 'https://digilib-admin.uwm.edu/noidu_gmgs?'
-FILE_SERVER_PATH_DEV = Path(r"C:\Users\srappel\Desktop\DEV_geoblacklight")
-FILE_SERVER_PATH = FILE_SERVER_PATH_DEV
-#FILE_SERVER_PATH = Path(r"S:\GeoBlacklight")
+#NOID_URL_DEV = 'https://digilib-dev.uwm.edu/noidu_gmgs?'
+#NOID_URL = NOID_URL_DEV
+NOID_URL = 'https://digilib-admin.uwm.edu/noidu_gmgs?'
+#FILE_SERVER_PATH_DEV = Path(r"C:\Users\srappel\Desktop\DEV_geoblacklight")
+#FILE_SERVER_PATH = FILE_SERVER_PATH_DEV
+FILE_SERVER_PATH = Path(r"S:\GeoBlacklight\web")
 
 
 ARK_REGEX = r"(\d{5})\/(\w{11})"
@@ -157,9 +157,9 @@ class Dataset:
     def ingest(self):
         fileserver_dir = FILE_SERVER_PATH / self.metadata.rights / self.metadata.identifier.assignedName
         fileserver_dir.mkdir()
-               
+        self.fileserver_dir = fileserver_dir       
         zipPath = fileserver_dir / f"{self.metadata.altTitle}.zip"
-        
+        self.fileserver_zip = zipPath
         with zipfile.ZipFile(zipPath, mode="w") as archive: 
             for member in self.path.rglob("*"):
                 try: 
@@ -170,7 +170,7 @@ class Dataset:
                     print()
                     continue
         archive.close()
-
+        
         newzipfile = zipfile.ZipFile(zipPath)
         print(f"\nContents of deliverable zipfile `{str(zipPath)}`")
         newzipfile.printdir()
@@ -186,7 +186,8 @@ class Dataset:
         Fileserver_ISO_Metadata = FILE_SERVER_PATH / "metadata" / f"{self.metadata.identifier.assignedName}_ISO.xml"
         Fileserver_ISO_Metadata.touch()
         Fileserver_ISO_Metadata.write_text(ISO_Metadata_text)
-        
+        self.fileserver_metadata = Fileserver_ISO_Metadata
+        print(Fileserver_ISO_Metadata.absolute)
         print("\n")
         return 
 
@@ -325,10 +326,9 @@ class AGSLMetadata:
         
         return output_ISO_Path, output_FGDC_Path
     
-    def bind(self) -> requests.models.Response:
+    def bind(self, purge=False) -> requests.models.Response:
 
         binder = NOID_URL + '-'
-
 
         def create_bind_params(metadata) -> dict:
             root_Element = ET.fromstring(metadata.xml_text)
@@ -365,8 +365,14 @@ class AGSLMetadata:
 
         def construct_bind_request(arkid, bind_params) -> str:
             param_string = ''
-            for key, value in bind_params.items():
-                param_string = param_string + f'bind set {arkid} {key} "{value}"' + '\n'
+            if purge == False:
+                for key, value in bind_params.items():
+                    param_string = param_string + f'bind set {arkid} {key} "{value}"' + '\n'
+            else:
+                print("### PURGE PURGE PURGE ###")
+                for key, value in bind_params.items():
+                    param_string = param_string + f'bind purge {arkid} {key}' + '\n'
+
             print(param_string)
             return param_string
 
